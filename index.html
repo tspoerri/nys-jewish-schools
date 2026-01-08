@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NY Jewish Schools Directory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: #f8f9fa; color: #222; }
+    .container { max-width: 700px; margin: 2em auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #0001; padding: 2em; }
+    h1 { text-align: center; color: #2a5d9f; }
+    .search-box { width: 100%; padding: 1em; font-size: 1.1em; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 1em; }
+    .autocomplete-list { position: relative; }
+    .autocomplete-items { position: absolute; background: #fff; border: 1px solid #ccc; border-radius: 0 0 8px 8px; z-index: 99; width: 100%; max-height: 200px; overflow-y: auto; }
+    .autocomplete-item { padding: 0.7em; cursor: pointer; }
+    .autocomplete-item:hover, .autocomplete-active { background: #e6f0fa; }
+    .record { margin-top: 2em; border: 1px solid #e0e0e0; border-radius: 8px; padding: 1.5em; background: #f9fbfd; }
+    .ids { display: flex; gap: 1.5em; margin-bottom: 1em; }
+    .id-block { display: flex; align-items: center; gap: 0.5em; font-size: 1.1em; }
+    .id-label { font-weight: bold; color: #2a5d9f; }
+    .copy-btn { background: none; border: none; cursor: pointer; font-size: 1.2em; color: #2a5d9f; }
+    .copy-btn:active { color: #1a3d6f; }
+    .field { margin-bottom: 0.5em; }
+    .field-label { font-weight: 500; color: #555; }
+    .view-all-btn { display: block; margin: 1em auto 0 auto; background: #e6f0fa; color: #2a5d9f; border: none; border-radius: 6px; padding: 0.5em 1.5em; font-size: 1em; opacity: 0.7; transition: opacity 0.2s; }
+    .view-all-btn:hover { opacity: 1; }
+    @media (max-width: 600px) {
+      .container { padding: 1em; }
+      .ids { flex-direction: column; gap: 0.5em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>NY Jewish Schools Directory</h1>
+    <div class="autocomplete-list">
+      <input id="search" class="search-box" type="text" placeholder="Search by name, acronym, or address..." autocomplete="off">
+      <div id="autocomplete-items" class="autocomplete-items"></div>
+    </div>
+    <button id="view-all" class="view-all-btn" style="display:none;">View all results</button>
+    <div id="record"></div>
+  </div>
+  <input type="file" id="csv-upload" accept=".csv" style="display:none;">
+  <script>
+    // Utility: CSV parsing (simple, no dependencies)
+    function parseCSV(text) {
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      const headers = lines[0].split(',').map(h => h.trim());
+      return lines.slice(1).map(line => {
+        const values = [];
+        let val = '', inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const c = line[i];
+          if (c === '"' && line[i+1] === '"') { val += '"'; i++; }
+          else if (c === '"') inQuotes = !inQuotes;
+          else if (c === ',' && !inQuotes) { values.push(val); val = ''; }
+          else val += c;
+        }
+        values.push(val);
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = values[i] ? values[i].trim() : '');
+        return obj;
+      });
+    }
+
+    // Load CSV
+    let schools = [];
+    fetch('schools_nys.csv')
+      .then(r => r.ok ? r.text() : Promise.reject('CSV not found'))
+      .then(text => { schools = parseCSV(text); setupAutocomplete(); })
+      .catch(() => {
+        document.getElementById('record').innerHTML = '<p style="color:red;">CSV file not found. Please upload your CSV: <input type="file" id="csv-upload" accept=".csv"></p>';
+        document.getElementById('csv-upload').style.display = 'block';
+        document.getElementById('csv-upload').addEventListener('change', function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = function(evt) {
+            schools = parseCSV(evt.target.result);
+            setupAutocomplete();
+          };
+          reader.readAsText(file);
+        });
+      });
+
+    // Autocomplete logic
+    function setupAutocomplete() {
+      const search = document.getElementById('search');
+      const acList = document.getElementById('autocomplete-items');
+      const viewAllBtn = document.getElementById('view-all');
+      let currentFocus = -1, results = [];
+
+      function filterSchools(val) {
+        val = val.toLowerCase();
+        return schools.filter(s =>
+          (s['Name'] && s['Name'].toLowerCase().includes(val)) ||
+          (s['Acronym'] && s['Acronym'].toLowerCase().includes(val)) ||
+          (s['Billing Street'] && s['Billing Street'].toLowerCase().includes(val)) ||
+          (s['Billing City'] && s['Billing City'].toLowerCase().includes(val)) ||
+          (s['Billing State'] && s['Billing State'].toLowerCase().includes(val)) ||
+          (s['Billing Zip Code'] && s['Billing Zip Code'].toLowerCase().includes(val)) ||
+          (s['Shipping Street'] && s['Shipping Street'].toLowerCase().includes(val)) ||
+          (s['Shipping City'] && s['Shipping City'].toLowerCase().includes(val)) ||
+          (s['Shipping State'] && s['Shipping State'].toLowerCase().includes(val)) ||
+          (s['Shipping Zip Code'] && s['Shipping Zip Code'].toLowerCase().includes(val))
+        );
+      }
+
+      function showAutocomplete(val) {
+        acList.innerHTML = '';
+        if (!val) return;
+        results = filterSchools(val);
+        if (results.length === 0) return;
+        results.slice(0, 10).forEach((s, idx) => {
+          const item = document.createElement('div');
+          item.className = 'autocomplete-item';
+          item.innerHTML = `<strong>${s['Name'] || ''}</strong> <span style="color:#888;">${s['Acronym'] ? '('+s['Acronym']+')' : ''}</span>`;
+          item.addEventListener('click', () => { showRecord(s); acList.innerHTML = ''; });
+          acList.appendChild(item);
+        });
+        viewAllBtn.style.display = results.length > 10 ? 'block' : 'none';
+      }
+
+      function showRecord(s) {
+        acList.innerHTML = '';
+        search.value = s['Name'] || '';
+        let html = `<div class="record">
+          <div class="ids">
+            <div class="id-block"><span class="id-label">BEDS</span>
+              <span>${s['BEDS'] || '<em>None</em>'}</span>
+              <button class="copy-btn" onclick="navigator.clipboard.writeText('${s['BEDS'] || ''}')"
+                title="Copy BEDS"><span>📋</span></button>
+            </div>
+            <div class="id-block"><span class="id-label">ORISS</span>
+              <span>${s['ORISS Institution ID'] || '<em>None</em>'}</span>
+              <button class="copy-btn" onclick="navigator.clipboard.writeText('${s['ORISS Institution ID'] || ''}')"
+                title="Copy ORISS"><span>📋</span></button>
+            </div>
+          </div>
+          <div class="field"><span class="field-label">Name:</span> ${s['Name'] || ''}</div>
+          <div class="field"><span class="field-label">Acronym:</span> ${s['Acronym'] || ''}</div>
+          <div class="field"><span class="field-label">Billing Address:</span> ${[s['Billing Street'], s['Billing City'], s['Billing State'], s['Billing Zip Code']].filter(Boolean).join(', ')}</div>
+          <div class="field"><span class="field-label">Shipping Address:</span> ${[s['Shipping Street'], s['Shipping City'], s['Shipping State'], s['Shipping Zip Code']].filter(Boolean).join(', ')}</div>
+          <div class="field"><span class="field-label">NIPSIS:</span> ${s['NIPSIS'] || '<em>None</em>'}</div>
+          <div class="field"><span class="field-label">DOE Name:</span> ${s['DOE Name'] || '<em>None</em>'}</div>
+        </div>`;
+        document.getElementById('record').innerHTML = html;
+      }
+
+      search.addEventListener('input', function() {
+        showAutocomplete(this.value);
+        document.getElementById('record').innerHTML = '';
+      });
+
+      search.addEventListener('keydown', function(e) {
+        let items = acList.getElementsByClassName('autocomplete-item');
+        if (e.key === 'ArrowDown') {
+          currentFocus++; addActive(items);
+        } else if (e.key === 'ArrowUp') {
+          currentFocus--; addActive(items);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (currentFocus > -1 && items[currentFocus]) items[currentFocus].click();
+        }
+      });
+
+      function addActive(items) {
+        if (!items) return;
+        removeActive(items);
+        if (currentFocus >= items.length) currentFocus = 0;
+        if (currentFocus < 0) currentFocus = items.length - 1;
+        items[currentFocus].classList.add('autocomplete-active');
+      }
+      function removeActive(items) {
+        for (let item of items) item.classList.remove('autocomplete-active');
+      }
+
+      document.addEventListener('click', function(e) {
+        if (e.target !== search) acList.innerHTML = '';
+      });
+
+      viewAllBtn.onclick = function() {
+        acList.innerHTML = '';
+        document.getElementById('record').innerHTML = results.slice(0, 100).map(s => `
+          <div class="record" style="margin-top:1em;">
+            <div class="ids">
+              <div class="id-block"><span class="id-label">BEDS</span>
+                <span>${s['BEDS'] || '<em>None</em>'}</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('${s['BEDS'] || ''}')"
+                  title="Copy BEDS"><span>📋</span></button>
+              </div>
+              <div class="id-block"><span class="id-label">ORISS</span>
+                <span>${s['ORISS Institution ID'] || '<em>None</em>'}</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('${s['ORISS Institution ID'] || ''}')"
+                  title="Copy ORISS"><span>📋</span></button>
+              </div>
+            </div>
+            <div class="field"><span class="field-label">Name:</span> ${s['Name'] || ''}</div>
+            <div class="field"><span class="field-label">Acronym:</span> ${s['Acronym'] || ''}</div>
+            <div class="field"><span class="field-label">Billing Address:</span> ${[s['Billing Street'], s['Billing City'], s['Billing State'], s['Billing Zip Code']].filter(Boolean).join(', ')}</div>
+            <div class="field"><span class="field-label">Shipping Address:</span> ${[s['Shipping Street'], s['Shipping City'], s['Shipping State'], s['Shipping Zip Code']].filter(Boolean).join(', ')}</div>
+            <div class="field"><span class="field-label">NIPSIS:</span> ${s['NIPSIS'] || '<em>None</em>'}</div>
+            <div class="field"><span class="field-label">DOE Name:</span> ${s['DOE Name'] || '<em>None</em>'}</div>
+          </div>
+        `).join('');
+      };
+    }
+  </script>
+</body>
+</html>
