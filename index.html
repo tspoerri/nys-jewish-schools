@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>NY Jewish Schools Directory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: #f8f9fa; color: #222; }
     .container { max-width: 700px; margin: 2em auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #0001; padding: 2em; }
@@ -128,12 +129,14 @@
             <div class="id-block"><span class="id-label">BEDS</span>
               <span>${s['BEDS'] || '<em>None</em>'}</span>
               <button class="copy-btn" onclick="navigator.clipboard.writeText('${s['BEDS'] || ''}')"
-                title="Copy BEDS"><span>📋</span></button>
+                title="Copy BEDS"><span><i class="far fa-copy"></i>
+</span></button>
             </div>
             <div class="id-block"><span class="id-label">ORISS</span>
               <span>${s['ORISS Institution ID'] || '<em>None</em>'}</span>
               <button class="copy-btn" onclick="navigator.clipboard.writeText('${s['ORISS Institution ID'] || ''}')"
-                title="Copy ORISS"><span>📋</span></button>
+                title="Copy ORISS"><span><i class="far fa-copy"></i>
+</span></button>
             </div>
           </div>
           <div class="field"><span class="field-label">Name:</span> ${s['Name'] || ''}</div>
