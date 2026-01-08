@@ -128,12 +128,14 @@
             <div class="id-block"><span class="id-label">BEDS</span>
               <span>${s['BEDS'] || '<em>None</em>'}</span>
               <button class="copy-btn" onclick="navigator.clipboard.writeText('${s['BEDS'] || ''}')"
-                title="Copy BEDS"><span>📋</span></button>
+                title="Copy BEDS"><span><i class="far fa-copy"></i>
+</span></button>
             </div>
             <div class="id-block"><span class="id-label">ORISS</span>
               <span>${s['ORISS Institution ID'] || '<em>None</em>'}</span>
               <button class="copy-btn" onclick="navigator.clipboard.writeText('${s['ORISS Institution ID'] || ''}')"
-                title="Copy ORISS"><span>📋</span></button>
+                title="Copy ORISS"><span><i class="far fa-copy"></i>
+</span></button>
             </div>
           </div>
           <div class="field"><span class="field-label">Name:</span> ${s['Name'] || ''}</div>
